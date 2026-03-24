@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>五子棋</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Cinzel:wght@700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --dark: #0a0905;
+  --gold: #e2ad3a;
+  --gold-dim: rgba(226,173,58,0.25);
+  --cream: #f2e6c8;
+  --cream-dim: rgba(242,230,200,0.5);
+}
+
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background: var(--dark);
+  color: var(--cream);
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', Georgia, serif;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ── noise overlay ── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity: .035; pointer-events: none; z-index: 9999;
+}
+
+/* ══════════════ SELECTION SCREEN ══════════════ */
+#sel {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 56px;
+  background: radial-gradient(ellipse 80% 60% at 50% 30%, #201808 0%, #0a0905 70%);
+  transition: opacity .5s ease, transform .5s ease;
+}
+#sel.out { opacity: 0; transform: scale(.96); pointer-events: none; }
+
+.sel-title { text-align: center; }
+.sel-h1 {
+  font-size: clamp(72px, 14vw, 124px);
+  font-weight: 900; letter-spacing: .18em;
+  color: var(--gold);
+  text-shadow: 0 0 80px rgba(226,173,58,.35), 0 2px 6px rgba(0,0,0,.6);
+  line-height: 1;
+}
+.sel-sub {
+  font-family: 'Cinzel', serif;
+  font-size: 11px; letter-spacing: .55em;
+  color: rgba(242,230,200,.3);
+  margin-top: 14px; text-transform: uppercase;
+}
+
+.cards { display: flex; gap: 20px; transition: opacity .25s, transform .25s; }
+.cards.hide { opacity: 0; transform: translateY(8px); pointer-events: none; }
+
+/* difficulty picker */
+#diff-pick {
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
+  position: absolute;
+  opacity: 0; transform: translateY(12px); pointer-events: none;
+  transition: opacity .28s, transform .28s;
+}
+#diff-pick.show { opacity: 1; transform: translateY(0); pointer-events: all; }
+.diff-label { font-size: 13px; letter-spacing: .35em; color: var(--cream-dim); text-transform: uppercase; }
+.diff-row { display: flex; gap: 14px; }
+.diff-btn {
+  width: 116px; height: 148px;
+  border: 1px solid rgba(226,173,58,.18); border-radius: 3px;
+  background: rgba(226,173,58,.025);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  cursor: pointer; font-family: inherit;
+  position: relative; overflow: hidden;
+  transition: transform .25s, border-color .25s, box-shadow .25s;
+}
+.diff-btn::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 60%, rgba(226,173,58,.1), transparent 70%);
+  opacity: 0; transition: opacity .25s;
+}
+.diff-btn:hover { transform: translateY(-4px); border-color: rgba(226,173,58,.55); box-shadow: 0 20px 50px rgba(0,0,0,.4); }
+.diff-btn:hover::before { opacity: 1; }
+.diff-icon { font-size: 26px; }
+.diff-name { font-size: 16px; font-weight: 700; color: var(--cream); letter-spacing: .06em; }
+.diff-hint { font-size: 10px; color: var(--cream-dim); letter-spacing: .04em; }
+.diff-back {
+  padding: 6px 16px; border: 1px solid rgba(226,173,58,.2); background: transparent;
+  color: var(--cream-dim); font-family: inherit; font-size: 12px;
+  cursor: pointer; border-radius: 2px; letter-spacing: .08em;
+  transition: all .2s;
+}
+.diff-back:hover { border-color: var(--gold); color: var(--gold); }
+
+.cards { display: flex; gap: 20px; }
+
+.card {
+  width: 186px; height: 230px;
+  border: 1px solid rgba(226,173,58,.18);
+  border-radius: 3px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px;
+  cursor: pointer;
+  background: rgba(226,173,58,.025);
+  position: relative; overflow: hidden;
+  transition: transform .28s ease, border-color .28s ease, box-shadow .28s ease;
+}
+.card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 60%, rgba(226,173,58,.1) 0%, transparent 70%);
+  opacity: 0; transition: opacity .28s;
+}
+.card:hover { transform: translateY(-5px); border-color: rgba(226,173,58,.55); box-shadow: 0 24px 64px rgba(0,0,0,.45), 0 0 32px rgba(226,173,58,.09); }
+.card:hover::before { opacity: 1; }
+
+.card-stones { display: flex; align-items: center; gap: 10px; }
+.sp {
+  width: 34px; height: 34px; border-radius: 50%;
+  box-shadow: 2px 3px 8px rgba(0,0,0,.6);
+}
+.sp.b { background: radial-gradient(circle at 34% 34%, #606060, #111 70%); }
+.sp.w { background: radial-gradient(circle at 34% 34%, #ffffff, #bbb 70%); }
+.ai-sp {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: radial-gradient(circle at 34% 34%, #5599ee, #1a3a80 70%);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cinzel', serif; font-size: 10px; color: #fff; font-weight: 700;
+  box-shadow: 2px 3px 8px rgba(0,0,0,.6);
+}
+.vs-sep { font-size: 16px; color: rgba(242,230,200,.25); }
+
+.card-name { font-size: 17px; font-weight: 700; color: var(--cream); letter-spacing: .06em; }
+.card-hint { font-size: 11px; color: var(--cream-dim); letter-spacing: .04em; }
+
+/* ══════════════ GAME SCREEN ══════════════ */
+#game {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  background: radial-gradient(ellipse 90% 50% at 50% 0%, #1e1408 0%, #0a0905 60%);
+  opacity: 0; transform: scale(1.03); pointer-events: none;
+  transition: opacity .5s ease, transform .5s ease;
+}
+#game.on { opacity: 1; transform: scale(1); pointer-events: all; }
+
+.ghdr { display: flex; align-items: center; gap: 20px; }
+.gtitle { font-size: 24px; font-weight: 700; color: var(--gold); letter-spacing: .22em; text-shadow: 0 0 24px rgba(226,173,58,.3); }
+.btn {
+  padding: 7px 18px; border: 1px solid rgba(226,173,58,.28);
+  background: transparent; color: rgba(242,230,200,.65);
+  font-family: inherit; font-size: 13px; cursor: pointer;
+  border-radius: 2px; letter-spacing: .05em;
+  transition: all .2s;
+}
+.btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(226,173,58,.07); }
+
+.status {
+  height: 36px; display: flex; align-items: center; gap: 10px;
+}
+.sstone {
+  width: 18px; height: 18px; border-radius: 50%;
+  transition: background .3s;
+}
+.sstone.b { background: radial-gradient(circle at 34% 34%, #606060, #111 70%); box-shadow: 1px 2px 4px rgba(0,0,0,.7); }
+.sstone.w { background: radial-gradient(circle at 34% 34%, #ffffff, #bbb 70%); box-shadow: 1px 2px 4px rgba(0,0,0,.7); }
+.sstone.ai { background: radial-gradient(circle at 34% 34%, #5599ee, #1a3a80 70%); box-shadow: 1px 2px 4px rgba(0,0,0,.7); }
+#stxt { font-size: 14px; color: var(--cream); letter-spacing: .05em; }
+
+.board-wrap { position: relative; }
+#cv {
+  display: block; cursor: crosshair;
+  border-radius: 2px;
+  box-shadow: 0 24px 90px rgba(0,0,0,.65), 0 0 0 1px rgba(226,173,58,.08);
+  max-width: min(92vw, calc(100svh - 160px));
+  max-height: min(92vw, calc(100svh - 160px));
+  touch-action: manipulation;
+}
+
+/* ══════════════ MOBILE RESPONSIVE ══════════════ */
+@media (max-width: 500px) {
+  /* selection screen */
+  #sel { gap: 36px; }
+  .sel-h1 { font-size: clamp(52px, 18vw, 80px); }
+
+  .cards { flex-direction: column; gap: 12px; }
+  .card { width: min(80vw, 280px); height: 72px; flex-direction: row; justify-content: flex-start; gap: 18px; padding: 0 22px; }
+  .card-stones { gap: 7px; }
+  .sp { width: 26px; height: 26px; }
+  .ai-sp { width: 26px; height: 26px; font-size: 8px; }
+
+  .diff-row { gap: 10px; }
+  .diff-btn { width: min(26vw, 96px); height: 120px; }
+  .diff-icon { font-size: 20px; }
+  .diff-name { font-size: 14px; }
+
+  /* game screen */
+  #game { gap: 8px; }
+  .ghdr { gap: 10px; }
+  .gtitle { font-size: 18px; letter-spacing: .12em; }
+  .btn { padding: 6px 10px; font-size: 11px; }
+  .status { height: 28px; gap: 7px; }
+  #stxt { font-size: 12px; }
+  #cv {
+    max-width: min(96vw, calc(100svh - 140px));
+    max-height: min(96vw, calc(100svh - 140px));
+  }
+}
+
+@media (max-height: 700px) and (orientation: portrait) {
+  #game { gap: 6px; }
+  #cv {
+    max-width: min(94vw, calc(100svh - 130px));
+    max-height: min(94vw, calc(100svh - 130px));
+  }
+}
+
+/* landscape on phones */
+@media (max-height: 500px) and (orientation: landscape) {
+  #sel { flex-direction: row; flex-wrap: wrap; gap: 20px; justify-content: center; }
+  .sel-title { flex: 0 0 auto; }
+  .sel-h1 { font-size: 48px; }
+  .sel-sub { display: none; }
+  .cards { flex-direction: row; gap: 12px; }
+  .card { width: 140px; height: 160px; }
+
+  #game { flex-direction: row; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; padding: 6px; }
+  .ghdr { order: 1; width: 100%; justify-content: center; }
+  .status { order: 2; }
+  .board-wrap { order: 3; }
+  #cv {
+    max-width: min(90vh, calc(100vw - 20px));
+    max-height: min(90vh, calc(100vw - 20px));
+  }
+}
+
+/* win overlay */
+#wov {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10,9,5,.78);
+  border-radius: 2px;
+  opacity: 0; pointer-events: none;
+  transition: opacity .4s;
+}
+#wov.on { opacity: 1; pointer-events: all; }
+.wmsg {
+  text-align: center;
+  transform: translateY(18px);
+  transition: transform .4s .1s;
+}
+#wov.on .wmsg { transform: translateY(0); }
+.wtxt { font-size: 40px; font-weight: 900; color: var(--gold); letter-spacing: .1em; text-shadow: 0 0 50px rgba(226,173,58,.5); }
+.wsub { margin-top: 6px; font-size: 13px; color: var(--cream-dim); letter-spacing: .1em; }
+.wbtn {
+  margin-top: 22px; padding: 11px 30px;
+  border: 1px solid var(--gold); background: rgba(226,173,58,.1);
+  color: var(--gold); font-family: inherit; font-size: 14px;
+  cursor: pointer; border-radius: 2px; letter-spacing: .1em;
+  transition: background .2s; display: block; margin-left: auto; margin-right: auto;
+}
+.wbtn:hover { background: rgba(226,173,58,.2); }
+
+/* floating decoration */
+.floats { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.fst {
+  position: absolute; border-radius: 50%; opacity: .055;
+  animation: rise linear infinite;
+}
+@keyframes rise {
+  from { transform: translateY(0) rotate(0deg); opacity: .055; }
+  to   { transform: translateY(-120vh) rotate(420deg); opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- Selection Screen -->
+<div id="sel">
+  <div class="floats" id="floats"></div>
+  <div class="sel-title">
+    <h1 class="sel-h1">五子棋</h1>
+    <p class="sel-sub">Gobang · Five in a Row</p>
+  </div>
+  <!-- mode cards wrapper (for positioning diff-pick absolutely) -->
+  <div style="position:relative;display:flex;align-items:center;justify-content:center;min-height:230px;min-width:392px;">
+    <div class="cards" id="cards-row">
+      <div class="card" onclick="startGame('pvp')">
+        <div class="card-stones">
+          <div class="sp b"></div>
+          <span class="vs-sep">vs</span>
+          <div class="sp w"></div>
+        </div>
+        <div class="card-name">双人对战</div>
+        <div class="card-hint">两位玩家轮流落子</div>
+      </div>
+      <div class="card" onclick="showDiffPick()">
+        <div class="card-stones">
+          <div class="sp b"></div>
+          <span class="vs-sep">vs</span>
+          <div class="ai-sp">AI</div>
+        </div>
+        <div class="card-name">人机对战</div>
+        <div class="card-hint">与智能 AI 对弈</div>
+      </div>
+    </div>
+    <!-- difficulty picker -->
+    <div id="diff-pick">
+      <div class="diff-label">选择 AI 难度</div>
+      <div class="diff-row">
+        <div class="diff-btn" onclick="startGame('pve',1)">
+          <div class="diff-icon">🌱</div>
+          <div class="diff-name">简单</div>
+          <div class="diff-hint">轻松入门</div>
+        </div>
+        <div class="diff-btn" onclick="startGame('pve',2)">
+          <div class="diff-icon">⚔️</div>
+          <div class="diff-name">中等</div>
+          <div class="diff-hint">有些挑战</div>
+        </div>
+        <div class="diff-btn" onclick="startGame('pve',3)">
+          <div class="diff-icon">🔥</div>
+          <div class="diff-name">困难</div>
+          <div class="diff-hint">全力以赴</div>
+        </div>
+      </div>
+      <button class="diff-back" onclick="hideDiffPick()">← 返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- Game Screen -->
+<div id="game">
+  <div class="ghdr">
+    <button class="btn" onclick="goBack()">← 返回</button>
+    <div style="text-align:center">
+      <h1 class="gtitle">五子棋</h1>
+      <div id="diff-tag" style="font-size:11px;letter-spacing:.2em;color:var(--cream-dim);margin-top:2px;height:14px;"></div>
+    </div>
+    <button class="btn" onclick="restart()">重新开始</button>
+  </div>
+  <div class="status">
+    <div class="sstone b" id="sstone"></div>
+    <span id="stxt">黑方先行</span>
+  </div>
+  <div class="board-wrap">
+    <canvas id="cv" width="560" height="560"></canvas>
+    <div id="wov">
+      <div class="wmsg">
+        <div class="wtxt" id="wtxt"></div>
+        <div class="wsub" id="wsub"></div>
+        <button class="wbtn" onclick="restart()">再来一局</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────
+const N = 15, CELL = 36, PAD = 28, SR = 15;
+const CS = PAD * 2 + CELL * (N - 1); // 560
+
+const STARS = [
+  [3,3],[3,7],[3,11],
+  [7,3],[7,7],[7,11],
+  [11,3],[11,7],[11,11]
+];
+
+// AI score table
+const S = {
+  FIVE:       1_000_000,
+  OPEN_FOUR:    100_000,
+  HALF_FOUR:     10_000,
+  OPEN_THREE:     5_000,
+  HALF_THREE:       500,
+  OPEN_TWO:         100,
+  HALF_TWO:          10,
+};
+
+// ── State ──────────────────────────────────────────────────────────
+let board, cur, mode, over, winLine, lastPt, aiGoing, aiDiff;
+
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+// ── Coordinate helpers ──────────────────────────────────────────────
+const px = c => PAD + c * CELL;
+const py = r => PAD + r * CELL;
+const nearRC = (mx, my) => {
+  const rect = cv.getBoundingClientRect();
+  const sx = CS / rect.width, sy = CS / rect.height;
+  const x = (mx - rect.left) * sx, y = (my - rect.top) * sy;
+  return { r: Math.round((y - PAD) / CELL), c: Math.round((x - PAD) / CELL) };
+};
+const inBound = r => r >= 0 && r < N;
+
+// ── Drawing ─────────────────────────────────────────────────────────
+function drawBoard(hoverR, hoverC) {
+  // Wood background
+  const bg = ctx.createLinearGradient(0, 0, CS, CS);
+  bg.addColorStop(0,   '#d4a040');
+  bg.addColorStop(0.4, '#c8922a');
+  bg.addColorStop(0.7, '#be8824');
+  bg.addColorStop(1,   '#c49530');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, CS, CS);
+
+  // Subtle wood grain stripes
+  ctx.save();
+  for (let i = 0; i < 18; i++) {
+    const gy = (i / 18) * CS;
+    const g = ctx.createLinearGradient(0, gy, CS * .6, gy + CS / 18);
+    g.addColorStop(0,   'rgba(150,90,10,0)');
+    g.addColorStop(.35, 'rgba(150,90,10,.045)');
+    g.addColorStop(.65, 'rgba(200,140,30,.025)');
+    g.addColorStop(1,   'rgba(150,90,10,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, gy, CS, CS / 18);
+  }
+  ctx.restore();
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(90,50,8,.7)';
+  ctx.lineWidth = .8;
+  for (let i = 0; i < N; i++) {
+    ctx.beginPath(); ctx.moveTo(px(i), py(0));  ctx.lineTo(px(i), py(N-1)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px(0), py(i));  ctx.lineTo(px(N-1), py(i)); ctx.stroke();
+  }
+
+  // Outer border (slightly bolder)
+  ctx.strokeStyle = 'rgba(90,50,8,.9)';
+  ctx.lineWidth = 1.4;
+  ctx.strokeRect(PAD, PAD, CELL*(N-1), CELL*(N-1));
+
+  // Star points
+  ctx.fillStyle = 'rgba(70,38,4,.85)';
+  for (const [r, c] of STARS) {
+    ctx.beginPath(); ctx.arc(px(c), py(r), 4, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Stones
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      if (board[r][c])
+        drawStone(r, c, board[r][c], winLine.some(([wr,wc]) => wr===r && wc===c));
+
+  // Last move dot
+  if (lastPt && !over) {
+    ctx.strokeStyle = 'rgba(255,70,70,.75)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(px(lastPt[1]), py(lastPt[0]), 5, 0, Math.PI*2); ctx.stroke();
+  }
+
+  // Ghost stone on hover
+  if (hoverR !== undefined && inBound(hoverR) && inBound(hoverC) && board[hoverR][hoverC] === 0) {
+    ctx.globalAlpha = .38;
+    _drawStoneShape(ctx, px(hoverC), py(hoverR), cur, false);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawStone(r, c, player, win) {
+  const x = px(c), y = py(r);
+  if (win) {
+    // glow ring behind stone
+    ctx.save();
+    ctx.shadowColor = '#e2ad3a';
+    ctx.shadowBlur = 22;
+    _drawStoneShape(ctx, x, y, player, true);
+    ctx.restore();
+  } else {
+    _drawStoneShape(ctx, x, y, player, false);
+  }
+  if (win) {
+    ctx.strokeStyle = '#e2ad3a';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(x, y, SR + 3.5, 0, Math.PI*2); ctx.stroke();
+  }
+}
+
+function _drawStoneShape(ctx, x, y, player, glow) {
+  // Shadow
+  ctx.save();
+  if (!glow) { ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 8; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 3; }
+
+  const body = ctx.createRadialGradient(x - SR*.32, y - SR*.38, SR*.05, x, y, SR);
+  if (player === 1) {
+    body.addColorStop(0, '#5e5e5e');
+    body.addColorStop(.45, '#1c1c1c');
+    body.addColorStop(1, '#000');
+  } else {
+    body.addColorStop(0, '#ffffff');
+    body.addColorStop(.5, '#e6e6e6');
+    body.addColorStop(1, '#b8b8b8');
+  }
+  ctx.fillStyle = body;
+  ctx.beginPath(); ctx.arc(x, y, SR, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // Specular
+  const hi = ctx.createRadialGradient(x - SR*.38, y - SR*.42, 1, x - SR*.22, y - SR*.28, SR*.58);
+  hi.addColorStop(0, player === 1 ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.82)');
+  hi.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hi;
+  ctx.beginPath(); ctx.arc(x, y, SR, 0, Math.PI*2); ctx.fill();
+}
+
+// ── Win detection ────────────────────────────────────────────────────
+function getWinLine(r, c) {
+  const p = board[r][c];
+  const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+  for (const [dr, dc] of dirs) {
+    const cells = [];
+    // walk back to start
+    let sr = r, sc = c;
+    while (inBound(sr-dr) && inBound(sc-dc) && board[sr-dr][sc-dc] === p) { sr -= dr; sc -= dc; }
+    // walk forward collecting
+    let cr = sr, cc = sc;
+    while (inBound(cr) && inBound(cc) && board[cr][cc] === p) { cells.push([cr,cc]); cr += dr; cc += dc; }
+    if (cells.length >= 5) return cells;
+  }
+  return null;
+}
+
+const boardFull = () => board.flat().every(v => v !== 0);
+
+// ── AI logic ─────────────────────────────────────────────────────────
+function lineScore(count, opens) {
+  if (count >= 5) return S.FIVE;
+  if (count === 4) return opens >= 2 ? S.OPEN_FOUR : opens === 1 ? S.HALF_FOUR : 0;
+  if (count === 3) return opens >= 2 ? S.OPEN_THREE : opens === 1 ? S.HALF_THREE : 0;
+  if (count === 2) return opens >= 2 ? S.OPEN_TWO : opens === 1 ? S.HALF_TWO : 0;
+  return 0;
+}
+
+function evalPos(r, c, player) {
+  board[r][c] = player;
+  const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+  let total = 0;
+  for (const [dr, dc] of dirs) {
+    let cnt = 1, opens = 0;
+    for (let i = 1; i < 6; i++) {
+      const nr = r+dr*i, nc = c+dc*i;
+      if (!inBound(nr)||!inBound(nc)) break;
+      if (board[nr][nc] === player) cnt++; else { if (!board[nr][nc]) opens++; break; }
+    }
+    for (let i = 1; i < 6; i++) {
+      const nr = r-dr*i, nc = c-dc*i;
+      if (!inBound(nr)||!inBound(nc)) break;
+      if (board[nr][nc] === player) cnt++; else { if (!board[nr][nc]) opens++; break; }
+    }
+    total += lineScore(cnt, opens);
+  }
+  board[r][c] = 0;
+  return total;
+}
+
+function candidates() {
+  const vis = Array.from({length:N}, () => new Array(N).fill(false));
+  const res = [];
+  let any = false;
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      if (board[r][c]) {
+        any = true;
+        for (let dr = -2; dr <= 2; dr++)
+          for (let dc = -2; dc <= 2; dc++) {
+            const nr = r+dr, nc = c+dc;
+            if (inBound(nr) && inBound(nc) && !board[nr][nc] && !vis[nr][nc]) {
+              vis[nr][nc] = true; res.push([nr, nc]);
+            }
+          }
+      }
+  if (!any) res.push([7, 7]);
+  return res;
+}
+
+// Hard: full heuristic evaluation
+function aiMoveHard() {
+  const AI = 2, HU = 1;
+  const cands = candidates();
+  let bestScore = -Infinity, best = null;
+  for (const [r, c] of cands) {
+    const atk = evalPos(r, c, AI);
+    if (atk >= S.FIVE) return [r, c];
+    const def = evalPos(r, c, HU);
+    const score = (def >= S.FIVE ? def * 1.5 : 0) + atk * 1.08 + def;
+    if (score > bestScore) { bestScore = score; best = [r, c]; }
+  }
+  return best ?? [7, 7];
+}
+
+// Medium: score all, but pick randomly from top 5 candidates
+function aiMoveMedium() {
+  const AI = 2, HU = 1;
+  const cands = candidates();
+  // Still check immediate win/block
+  for (const [r, c] of cands) if (evalPos(r, c, AI) >= S.FIVE) return [r, c];
+  for (const [r, c] of cands) if (evalPos(r, c, HU) >= S.FIVE) return [r, c];
+  // Also block open four
+  for (const [r, c] of cands) if (evalPos(r, c, HU) >= S.OPEN_FOUR) return [r, c];
+  // Score and pick randomly among top 5
+  const scored = cands.map(([r, c]) => [r, c, evalPos(r,c,AI) * 1.08 + evalPos(r,c,HU)])
+    .sort((a, b) => b[2] - a[2]);
+  const pool = scored.slice(0, Math.min(5, scored.length));
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  return [pick[0], pick[1]];
+}
+
+// Easy: only react to immediate win/block, otherwise random
+function aiMoveEasy() {
+  const AI = 2, HU = 1;
+  const cands = candidates();
+  for (const [r, c] of cands) if (evalPos(r, c, AI) >= S.FIVE) return [r, c];
+  for (const [r, c] of cands) if (evalPos(r, c, HU) >= S.FIVE) return [r, c];
+  return cands[Math.floor(Math.random() * cands.length)] ?? [7, 7];
+}
+
+function aiMove() {
+  if (aiDiff === 1) return aiMoveEasy();
+  if (aiDiff === 2) return aiMoveMedium();
+  return aiMoveHard();
+}
+
+// ── Game flow ────────────────────────────────────────────────────────
+function init() {
+  board = Array.from({length:N}, () => new Array(N).fill(0));
+  cur = 1; over = false; winLine = []; lastPt = null; aiGoing = false;
+}
+
+function place(r, c) {
+  if (over || board[r][c] || aiGoing) return false;
+  board[r][c] = cur;
+  lastPt = [r, c];
+  const wl = getWinLine(r, c);
+  if (wl) { winLine = wl; over = true; drawBoard(); showWin(cur); return true; }
+  if (boardFull()) { over = true; drawBoard(); showDraw(); return true; }
+  cur = cur === 1 ? 2 : 1;
+  drawBoard(); updateStatus(); return true;
+}
+
+function doAI() {
+  aiGoing = true; updateStatus();
+  setTimeout(() => {
+    const mv = aiMove();
+    if (mv) place(mv[0], mv[1]);
+    aiGoing = false;
+    if (!over) updateStatus();
+  }, 280);
+}
+
+// ── Events ───────────────────────────────────────────────────────────
+let hR, hC;
+
+cv.addEventListener('click', e => {
+  if (over || aiGoing) return;
+  if (mode === 'pve' && cur !== 1) return;
+  const {r, c} = nearRC(e.clientX, e.clientY);
+  if (!inBound(r) || !inBound(c)) return;
+  if (place(r, c) && mode === 'pve' && !over) doAI();
+});
+
+cv.addEventListener('mousemove', e => {
+  if (over || aiGoing || (mode === 'pve' && cur !== 1)) { if (hR !== undefined) { hR = hC = undefined; drawBoard(); } return; }
+  const {r, c} = nearRC(e.clientX, e.clientY);
+  if (r !== hR || c !== hC) { hR = r; hC = c; drawBoard(hR, hC); }
+});
+
+cv.addEventListener('mouseleave', () => { hR = hC = undefined; drawBoard(); });
+
+// ── UI helpers ───────────────────────────────────────────────────────
+function updateStatus() {
+  const ss = document.getElementById('sstone');
+  const st = document.getElementById('stxt');
+  if (aiGoing) { ss.className = 'sstone ai'; st.textContent = 'AI 思考中…'; return; }
+  if (cur === 1) { ss.className = 'sstone b'; st.textContent = mode === 'pve' ? '你的回合（黑方）' : '黑方落子'; }
+  else           { ss.className = mode === 'pve' ? 'sstone ai' : 'sstone w'; st.textContent = mode === 'pve' ? 'AI 回合（白方）' : '白方落子'; }
+}
+
+function showWin(player) {
+  const wt = document.getElementById('wtxt'), ws = document.getElementById('wsub');
+  if (mode === 'pve') {
+    wt.textContent = player === 1 ? '你赢了！' : 'AI 获胜';
+    ws.textContent = player === 1 ? '恭喜！你击败了 AI' : '不要气馁，再战一局';
+  } else {
+    wt.textContent = player === 1 ? '黑方获胜' : '白方获胜';
+    ws.textContent = '精彩对局！';
+  }
+  setTimeout(() => document.getElementById('wov').classList.add('on'), 320);
+}
+
+function showDraw() {
+  document.getElementById('wtxt').textContent = '平局';
+  document.getElementById('wsub').textContent = '势均力敌，难分高下';
+  setTimeout(() => document.getElementById('wov').classList.add('on'), 320);
+}
+
+function showDiffPick() {
+  document.getElementById('cards-row').classList.add('hide');
+  setTimeout(() => document.getElementById('diff-pick').classList.add('show'), 220);
+}
+
+function hideDiffPick() {
+  document.getElementById('diff-pick').classList.remove('show');
+  setTimeout(() => document.getElementById('cards-row').classList.remove('hide'), 220);
+}
+
+const DIFF_NAMES = { 1: '简单', 2: '中等', 3: '困难' };
+
+function startGame(m, diff) {
+  mode = m;
+  aiDiff = diff ?? 2;
+  init();
+  // reset diff picker state
+  document.getElementById('diff-pick').classList.remove('show');
+  document.getElementById('cards-row').classList.remove('hide');
+  document.getElementById('sel').classList.add('out');
+  setTimeout(() => { document.getElementById('sel').style.display = 'none'; document.getElementById('game').classList.add('on'); }, 480);
+  document.getElementById('wov').classList.remove('on');
+  // difficulty tag in header
+  const tag = document.getElementById('diff-tag');
+  tag.textContent = m === 'pve' ? `人机对战 · ${DIFF_NAMES[aiDiff]}` : '双人对战';
+  updateStatus(); drawBoard();
+}
+
+function restart() {
+  init(); document.getElementById('wov').classList.remove('on');
+  updateStatus(); drawBoard();
+}
+
+function goBack() {
+  document.getElementById('game').classList.remove('on');
+  document.getElementById('diff-pick').classList.remove('show');
+  document.getElementById('cards-row').classList.remove('hide');
+  const sel = document.getElementById('sel');
+  sel.style.display = 'flex';
+  requestAnimationFrame(() => requestAnimationFrame(() => sel.classList.remove('out')));
+}
+
+// ── Floating stones decoration ────────────────────────────────────────
+(function () {
+  const container = document.getElementById('floats');
+  for (let i = 0; i < 14; i++) {
+    const el = document.createElement('div');
+    el.className = 'fst';
+    const sz = 18 + Math.random() * 56;
+    const isBlk = Math.random() > .5;
+    el.style.cssText =
+      `width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${100+Math.random()*80}%;` +
+      `background:${isBlk ? 'radial-gradient(circle at 34% 34%,#555,#000 70%)' : 'radial-gradient(circle at 34% 34%,#fff,#ccc 70%)'};` +
+      `animation-duration:${9+Math.random()*18}s;animation-delay:${-Math.random()*25}s;`;
+    container.appendChild(el);
+  }
+})();
+</script>
+</body>
+</html>
