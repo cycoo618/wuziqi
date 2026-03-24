@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>五子棋</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Cinzel:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Cinzel:wght@700&family=Orbitron:wght@400;700;900&display=swap');
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -279,6 +279,63 @@ body::after {
   from { transform: translateY(0) rotate(0deg); opacity: .055; }
   to   { transform: translateY(-120vh) rotate(420deg); opacity: 0; }
 }
+
+/* ══════════════ SKIN PICKER ══════════════ */
+.skin-pick { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.skin-label { font-size: 9px; letter-spacing: .35em; color: var(--cream-dim); text-transform: uppercase; }
+.skin-row { display: flex; gap: 8px; }
+.skin-btn {
+  padding: 5px 18px;
+  border: 1px solid rgba(226,173,58,.25); background: transparent;
+  color: var(--cream-dim); font-family: inherit; font-size: 11px;
+  cursor: pointer; border-radius: 2px; letter-spacing: .06em;
+  transition: all .2s;
+}
+.skin-btn:hover { border-color: var(--gold); color: var(--gold); }
+.skin-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(226,173,58,.07); }
+
+/* ══════════════ NEON SKIN ══════════════ */
+html[data-skin="neon"] {
+  --dark: #050510;
+  --gold: #00f5d4;
+  --gold-dim: rgba(0,245,212,0.25);
+  --cream: #c8d6ff;
+  --cream-dim: rgba(200,214,255,0.5);
+}
+html[data-skin="neon"] body {
+  font-family: 'Orbitron', monospace;
+}
+html[data-skin="neon"] #sel {
+  background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(0,245,212,0.06) 0%, #050510 70%);
+}
+html[data-skin="neon"] #game {
+  background: radial-gradient(ellipse 90% 50% at 50% 0%, rgba(0,245,212,0.05) 0%, #050510 60%);
+}
+html[data-skin="neon"] .sel-h1 {
+  text-shadow: 0 0 80px rgba(0,245,212,.35), 0 0 160px rgba(0,245,212,.12), 0 2px 6px rgba(0,0,0,.6);
+}
+html[data-skin="neon"] .gtitle {
+  text-shadow: 0 0 24px rgba(0,245,212,.5);
+}
+html[data-skin="neon"] .btn { border-color: rgba(0,245,212,.3); }
+html[data-skin="neon"] .btn:hover { border-color: #00f5d4; color: #00f5d4; background: rgba(0,245,212,.07); }
+html[data-skin="neon"] .card { border-color: rgba(0,245,212,.18); background: rgba(0,245,212,.025); }
+html[data-skin="neon"] .card:hover { border-color: rgba(0,245,212,.55); box-shadow: 0 24px 64px rgba(0,0,0,.45), 0 0 32px rgba(0,245,212,.1); }
+html[data-skin="neon"] .diff-btn { border-color: rgba(0,245,212,.18); background: rgba(0,245,212,.025); }
+html[data-skin="neon"] .diff-btn:hover { border-color: rgba(0,245,212,.55); }
+html[data-skin="neon"] .diff-back:hover { border-color: #00f5d4; color: #00f5d4; }
+html[data-skin="neon"] .wtxt { color: #00f5d4; text-shadow: 0 0 50px rgba(0,245,212,.5); }
+html[data-skin="neon"] .wbtn { border-color: #00f5d4; background: rgba(0,245,212,.1); color: #00f5d4; }
+html[data-skin="neon"] .wbtn:hover { background: rgba(0,245,212,.2); }
+html[data-skin="neon"] #cv { box-shadow: 0 0 0 1px rgba(0,245,212,.15), 0 0 60px rgba(0,245,212,.08), 0 24px 90px rgba(0,0,0,.65); }
+html[data-skin="neon"] .sstone.b { background: radial-gradient(circle at 34% 34%, #1a3a3a, #010808 70%); box-shadow: 0 0 8px rgba(0,245,212,.5); }
+html[data-skin="neon"] .sstone.w { background: radial-gradient(circle at 34% 34%, #3a0a20, #0a0108 70%); box-shadow: 0 0 8px rgba(255,0,110,.5); }
+html[data-skin="neon"] .sstone.ai { background: radial-gradient(circle at 34% 34%, #3a0a20, #0a0108 70%); box-shadow: 0 0 8px rgba(255,0,110,.5); }
+html[data-skin="neon"] .sp.b { background: radial-gradient(circle at 34% 34%, #1a3a3a, #010808 70%); }
+html[data-skin="neon"] .sp.w { background: radial-gradient(circle at 34% 34%, #3a0a20, #0a0108 70%); }
+html[data-skin="neon"] .ai-sp { background: radial-gradient(circle at 34% 34%, #3a0a20, #100010 70%); }
+html[data-skin="neon"] .skin-btn { border-color: rgba(0,245,212,.25); }
+html[data-skin="neon"] .skin-btn.active { background: rgba(0,245,212,.07); }
 </style>
 </head>
 <body>
@@ -289,6 +346,13 @@ body::after {
   <div class="sel-title">
     <h1 class="sel-h1">五子棋</h1>
     <p class="sel-sub">Gobang · Five in a Row</p>
+  </div>
+  <div class="skin-pick">
+    <div class="skin-label">皮肤 · Skin</div>
+    <div class="skin-row">
+      <button class="skin-btn active" id="sbtn-classic" onclick="setSkin('classic')">经典</button>
+      <button class="skin-btn" id="sbtn-neon" onclick="setSkin('neon')">霓虹</button>
+    </div>
   </div>
   <!-- mode cards wrapper (for positioning diff-pick absolutely) -->
   <div style="position:relative;display:flex;align-items:center;justify-content:center;min-height:230px;min-width:392px;">
@@ -364,6 +428,23 @@ body::after {
 </div>
 
 <script>
+// ── Skin ────────────────────────────────────────────────────────────
+let currentSkin = localStorage.getItem('wuziqi_skin') || 'classic';
+(function() {
+  document.documentElement.dataset.skin = currentSkin;
+  document.getElementById('sbtn-classic').classList.toggle('active', currentSkin === 'classic');
+  document.getElementById('sbtn-neon').classList.toggle('active', currentSkin === 'neon');
+})();
+
+function setSkin(s) {
+  currentSkin = s;
+  localStorage.setItem('wuziqi_skin', s);
+  document.documentElement.dataset.skin = s;
+  document.getElementById('sbtn-classic').classList.toggle('active', s === 'classic');
+  document.getElementById('sbtn-neon').classList.toggle('active', s === 'neon');
+  if (document.getElementById('game').classList.contains('on')) drawBoard();
+}
+
 // ── Constants ──────────────────────────────────────────────────────
 const N = 15, CELL = 36, PAD = 28, SR = 15;
 const CS = PAD * 2 + CELL * (N - 1); // 560
@@ -404,46 +485,70 @@ const inBound = r => r >= 0 && r < N;
 
 // ── Drawing ─────────────────────────────────────────────────────────
 function drawBoard(hoverR, hoverC) {
-  // Wood background
-  const bg = ctx.createLinearGradient(0, 0, CS, CS);
-  bg.addColorStop(0,   '#d4a040');
-  bg.addColorStop(0.4, '#c8922a');
-  bg.addColorStop(0.7, '#be8824');
-  bg.addColorStop(1,   '#c49530');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, CS, CS);
-
-  // Subtle wood grain stripes
-  ctx.save();
-  for (let i = 0; i < 18; i++) {
-    const gy = (i / 18) * CS;
-    const g = ctx.createLinearGradient(0, gy, CS * .6, gy + CS / 18);
-    g.addColorStop(0,   'rgba(150,90,10,0)');
-    g.addColorStop(.35, 'rgba(150,90,10,.045)');
-    g.addColorStop(.65, 'rgba(200,140,30,.025)');
-    g.addColorStop(1,   'rgba(150,90,10,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, gy, CS, CS / 18);
-  }
-  ctx.restore();
-
-  // Grid lines
-  ctx.strokeStyle = 'rgba(90,50,8,.7)';
-  ctx.lineWidth = .8;
-  for (let i = 0; i < N; i++) {
-    ctx.beginPath(); ctx.moveTo(px(i), py(0));  ctx.lineTo(px(i), py(N-1)); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(px(0), py(i));  ctx.lineTo(px(N-1), py(i)); ctx.stroke();
-  }
-
-  // Outer border (slightly bolder)
-  ctx.strokeStyle = 'rgba(90,50,8,.9)';
-  ctx.lineWidth = 1.4;
-  ctx.strokeRect(PAD, PAD, CELL*(N-1), CELL*(N-1));
-
-  // Star points
-  ctx.fillStyle = 'rgba(70,38,4,.85)';
-  for (const [r, c] of STARS) {
-    ctx.beginPath(); ctx.arc(px(c), py(r), 4, 0, Math.PI*2); ctx.fill();
+  if (currentSkin === 'neon') {
+    // Neon: dark background
+    ctx.fillStyle = '#050510';
+    ctx.fillRect(0, 0, CS, CS);
+    // Subtle center glow
+    const cg = ctx.createRadialGradient(CS/2, CS/2, 0, CS/2, CS/2, CS * .7);
+    cg.addColorStop(0, 'rgba(0,245,212,0.05)');
+    cg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = cg;
+    ctx.fillRect(0, 0, CS, CS);
+    // Grid lines
+    ctx.strokeStyle = 'rgba(0,245,212,.18)';
+    ctx.lineWidth = .7;
+    for (let i = 0; i < N; i++) {
+      ctx.beginPath(); ctx.moveTo(px(i), py(0));  ctx.lineTo(px(i), py(N-1)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px(0), py(i));  ctx.lineTo(px(N-1), py(i)); ctx.stroke();
+    }
+    // Outer border
+    ctx.strokeStyle = 'rgba(0,245,212,.45)';
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(PAD, PAD, CELL*(N-1), CELL*(N-1));
+    // Star points
+    ctx.fillStyle = 'rgba(0,245,212,.7)';
+    for (const [r, c] of STARS) {
+      ctx.beginPath(); ctx.arc(px(c), py(r), 3.5, 0, Math.PI*2); ctx.fill();
+    }
+  } else {
+    // Classic: Wood background
+    const bg = ctx.createLinearGradient(0, 0, CS, CS);
+    bg.addColorStop(0,   '#d4a040');
+    bg.addColorStop(0.4, '#c8922a');
+    bg.addColorStop(0.7, '#be8824');
+    bg.addColorStop(1,   '#c49530');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, CS, CS);
+    // Subtle wood grain stripes
+    ctx.save();
+    for (let i = 0; i < 18; i++) {
+      const gy = (i / 18) * CS;
+      const g = ctx.createLinearGradient(0, gy, CS * .6, gy + CS / 18);
+      g.addColorStop(0,   'rgba(150,90,10,0)');
+      g.addColorStop(.35, 'rgba(150,90,10,.045)');
+      g.addColorStop(.65, 'rgba(200,140,30,.025)');
+      g.addColorStop(1,   'rgba(150,90,10,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, gy, CS, CS / 18);
+    }
+    ctx.restore();
+    // Grid lines
+    ctx.strokeStyle = 'rgba(90,50,8,.7)';
+    ctx.lineWidth = .8;
+    for (let i = 0; i < N; i++) {
+      ctx.beginPath(); ctx.moveTo(px(i), py(0));  ctx.lineTo(px(i), py(N-1)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px(0), py(i));  ctx.lineTo(px(N-1), py(i)); ctx.stroke();
+    }
+    // Outer border (slightly bolder)
+    ctx.strokeStyle = 'rgba(90,50,8,.9)';
+    ctx.lineWidth = 1.4;
+    ctx.strokeRect(PAD, PAD, CELL*(N-1), CELL*(N-1));
+    // Star points
+    ctx.fillStyle = 'rgba(70,38,4,.85)';
+    for (const [r, c] of STARS) {
+      ctx.beginPath(); ctx.arc(px(c), py(r), 4, 0, Math.PI*2); ctx.fill();
+    }
   }
 
   // Stones
@@ -454,7 +559,7 @@ function drawBoard(hoverR, hoverC) {
 
   // Last move dot
   if (lastPt && !over) {
-    ctx.strokeStyle = 'rgba(255,70,70,.75)';
+    ctx.strokeStyle = currentSkin === 'neon' ? 'rgba(255,255,255,.8)' : 'rgba(255,70,70,.75)';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(px(lastPt[1]), py(lastPt[0]), 5, 0, Math.PI*2); ctx.stroke();
   }
@@ -469,10 +574,13 @@ function drawBoard(hoverR, hoverC) {
 
 function drawStone(r, c, player, win) {
   const x = px(c), y = py(r);
+  const winColor = currentSkin === 'neon'
+    ? (player === 1 ? '#00f5d4' : '#ff006e')
+    : '#e2ad3a';
   if (win) {
     // glow ring behind stone
     ctx.save();
-    ctx.shadowColor = '#e2ad3a';
+    ctx.shadowColor = winColor;
     ctx.shadowBlur = 22;
     _drawStoneShape(ctx, x, y, player, true);
     ctx.restore();
@@ -480,35 +588,51 @@ function drawStone(r, c, player, win) {
     _drawStoneShape(ctx, x, y, player, false);
   }
   if (win) {
-    ctx.strokeStyle = '#e2ad3a';
+    ctx.strokeStyle = winColor;
     ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(x, y, SR + 3.5, 0, Math.PI*2); ctx.stroke();
   }
 }
 
 function _drawStoneShape(ctx, x, y, player, glow) {
-  // Shadow
   ctx.save();
   if (!glow) { ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 8; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 3; }
 
   const body = ctx.createRadialGradient(x - SR*.32, y - SR*.38, SR*.05, x, y, SR);
-  if (player === 1) {
-    body.addColorStop(0, '#5e5e5e');
-    body.addColorStop(.45, '#1c1c1c');
-    body.addColorStop(1, '#000');
+  if (currentSkin === 'neon') {
+    if (player === 1) {
+      body.addColorStop(0,  '#1a3a3a');
+      body.addColorStop(.4, '#061414');
+      body.addColorStop(1,  '#010808');
+    } else {
+      body.addColorStop(0,  '#3a0a20');
+      body.addColorStop(.4, '#160410');
+      body.addColorStop(1,  '#0a0108');
+    }
   } else {
-    body.addColorStop(0, '#ffffff');
-    body.addColorStop(.5, '#e6e6e6');
-    body.addColorStop(1, '#b8b8b8');
+    if (player === 1) {
+      body.addColorStop(0, '#5e5e5e');
+      body.addColorStop(.45, '#1c1c1c');
+      body.addColorStop(1, '#000');
+    } else {
+      body.addColorStop(0, '#ffffff');
+      body.addColorStop(.5, '#e6e6e6');
+      body.addColorStop(1, '#b8b8b8');
+    }
   }
   ctx.fillStyle = body;
   ctx.beginPath(); ctx.arc(x, y, SR, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 
-  // Specular
+  // Specular highlight
   const hi = ctx.createRadialGradient(x - SR*.38, y - SR*.42, 1, x - SR*.22, y - SR*.28, SR*.58);
-  hi.addColorStop(0, player === 1 ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.82)');
-  hi.addColorStop(1, 'rgba(255,255,255,0)');
+  if (currentSkin === 'neon') {
+    hi.addColorStop(0, player === 1 ? 'rgba(0,245,212,.55)' : 'rgba(255,0,110,.55)');
+    hi.addColorStop(1, 'rgba(0,0,0,0)');
+  } else {
+    hi.addColorStop(0, player === 1 ? 'rgba(255,255,255,.3)' : 'rgba(255,255,255,.82)');
+    hi.addColorStop(1, 'rgba(255,255,255,0)');
+  }
   ctx.fillStyle = hi;
   ctx.beginPath(); ctx.arc(x, y, SR, 0, Math.PI*2); ctx.fill();
 }
