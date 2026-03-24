@@ -775,8 +775,8 @@ function doAI() {
   aiGoing = true; updateStatus();
   setTimeout(() => {
     const mv = aiMove();
-    if (mv) place(mv[0], mv[1]);
     aiGoing = false;
+    if (mv) place(mv[0], mv[1]);
     if (!over) updateStatus();
   }, 280);
 }
