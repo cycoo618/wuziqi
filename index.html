@@ -578,6 +578,8 @@ const S = {
 // ── State ──────────────────────────────────────────────────────────
 let board, cur, mode, over, winLine, lastPt, aiGoing, aiDiff;
 let mqttClient, myColor, currentRoomId;
+let lastWinner = 0; // 0=未分胜负/平局, 1=黑胜, 2=白胜
+let startFirst  = 1; // pvp: 下局先手方颜色
 
 const cv  = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -867,7 +869,8 @@ function aiMove() {
 // ── Game flow ────────────────────────────────────────────────────────
 function init() {
   board = Array.from({length:N}, () => new Array(N).fill(0));
-  cur = 1; over = false; winLine = []; lastPt = null; aiGoing = false;
+  cur = (mode === 'pvp') ? startFirst : 1;
+  over = false; winLine = []; lastPt = null; aiGoing = false;
 }
 
 function place(r, c) {
@@ -929,6 +932,7 @@ function updateStatus() {
 }
 
 function showWin(player) {
+  lastWinner = player;
   const wt = document.getElementById('wtxt'), ws = document.getElementById('wsub');
   if (mode === 'pve') {
     wt.textContent = player === 1 ? '你赢了！' : 'AI 获胜';
@@ -944,6 +948,7 @@ function showWin(player) {
 }
 
 function showDraw() {
+  lastWinner = 0;
   document.getElementById('wtxt').textContent = '平局';
   document.getElementById('wsub').textContent = '势均力敌，难分高下';
   setTimeout(() => document.getElementById('wov').classList.add('on'), 320);
@@ -962,8 +967,8 @@ function hideDiffPick() {
 const DIFF_NAMES = { 1: '简单', 2: '中等', 3: '困难' };
 
 function startGame(m, diff) {
-  mode = m;
-  aiDiff = diff ?? 2;
+  mode = m; aiDiff = diff ?? 2;
+  lastWinner = 0; startFirst = 1;
   init();
   // reset diff picker state
   document.getElementById('diff-pick').classList.remove('show');
@@ -977,14 +982,40 @@ function startGame(m, diff) {
   updateStatus(); drawBoard();
 }
 
+function applyNextFirst() {
+  // 输家先手：赢家颜色已知，输家颜色 = 3 - lastWinner
+  if (lastWinner === 0) return;
+  if (mode === 'pvp') {
+    startFirst = 3 - lastWinner; // 输家颜色先手
+  } else if (mode === 'online') {
+    // 黑方(1)赢 → 白方(输家)变黑先手 → 双方颜色互换
+    // 白方(2)赢 → 黑方(输家)仍先手 → 颜色不变
+    if (lastWinner === 1) myColor = 3 - myColor;
+  }
+}
+
 function restart() {
-  init(); document.getElementById('wov').classList.remove('on');
-  if (mode === 'online' && mqttClient) mqttPublish('restart', {});
+  applyNextFirst();
+  const prevWinner = lastWinner;
+  lastWinner = 0;
+  init();
+  document.getElementById('wov').classList.remove('on');
+  if (mode === 'online' && mqttClient) mqttPublish('restart', { prevWinner });
+  if (mode === 'online') {
+    document.getElementById('diff-tag').textContent = myColor === 1 ? '联网对战 · 你执黑' : '联网对战 · 你执白';
+  }
   updateStatus(); drawBoard();
 }
 
 function goBack() {
-  if (mode === 'online') cleanupPeer();
+  if (mode === 'online') {
+    if (!confirm('确定要离开房间吗？')) return;
+    mqttPublish('leave', {});
+    setTimeout(cleanupPeer, 100);
+  } else {
+    cleanupPeer();
+  }
+  lastWinner = 0; startFirst = 1;
   document.getElementById('game').classList.remove('on');
   document.getElementById('diff-pick').classList.remove('show');
   document.getElementById('cards-row').classList.remove('hide');
@@ -1069,7 +1100,7 @@ function createRoom() {
 
   mqttClient = mqttConnect('host', () => {
     document.getElementById('ol-host-status').textContent = '等待好友加入…';
-    mqttClient.subscribe([mqttTopic('guest-join'), mqttTopic('move'), mqttTopic('restart')]);
+    mqttClient.subscribe([mqttTopic('guest-join'), mqttTopic('move'), mqttTopic('restart'), mqttTopic('leave')]);
 
     const ping = () => { if (mqttClient && !_hostStarted) mqttClient.publish(mqttTopic('host-ready'), '1'); };
     ping();
@@ -1085,7 +1116,18 @@ function createRoom() {
       } else if (topic === mqttTopic('move') && mode === 'online') {
         const d = JSON.parse(msg.toString()); place(d.r, d.c);
       } else if (topic === mqttTopic('restart') && mode === 'online') {
-        init(); document.getElementById('wov').classList.remove('on'); updateStatus(); drawBoard();
+        const d = JSON.parse(msg.toString());
+        lastWinner = d.prevWinner ?? 0;
+        applyNextFirst();
+        lastWinner = 0;
+        init();
+        document.getElementById('wov').classList.remove('on');
+        document.getElementById('diff-tag').textContent = myColor === 1 ? '联网对战 · 你执黑' : '联网对战 · 你执白';
+        updateStatus(); drawBoard();
+      } else if (topic === mqttTopic('leave') && mode === 'online') {
+        over = true;
+        document.getElementById('stxt').textContent = '对方已离开房间';
+        hR = hC = undefined; drawBoard();
       }
     });
   });
@@ -1102,7 +1144,7 @@ function joinRoom() {
 
   mqttClient = mqttConnect('guest', () => {
     setJoinStatus('已连接，正在寻找房间…');
-    mqttClient.subscribe([mqttTopic('host-ready'), mqttTopic('start'), mqttTopic('move'), mqttTopic('restart')]);
+    mqttClient.subscribe([mqttTopic('host-ready'), mqttTopic('start'), mqttTopic('move'), mqttTopic('restart'), mqttTopic('leave')]);
 
     _joinTimer = setTimeout(() => {
       if (mode !== 'online') setJoinStatus('等待超时，请确认房间号并重试');
@@ -1120,7 +1162,18 @@ function joinRoom() {
       } else if (topic === mqttTopic('move') && mode === 'online') {
         const d = JSON.parse(msg.toString()); place(d.r, d.c);
       } else if (topic === mqttTopic('restart') && mode === 'online') {
-        init(); document.getElementById('wov').classList.remove('on'); updateStatus(); drawBoard();
+        const d = JSON.parse(msg.toString());
+        lastWinner = d.prevWinner ?? 0;
+        applyNextFirst();
+        lastWinner = 0;
+        init();
+        document.getElementById('wov').classList.remove('on');
+        document.getElementById('diff-tag').textContent = myColor === 1 ? '联网对战 · 你执黑' : '联网对战 · 你执白';
+        updateStatus(); drawBoard();
+      } else if (topic === mqttTopic('leave') && mode === 'online') {
+        over = true;
+        document.getElementById('stxt').textContent = '对方已离开房间';
+        hR = hC = undefined; drawBoard();
       }
     });
   });
