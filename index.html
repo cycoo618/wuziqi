@@ -1043,14 +1043,17 @@ function copyRoomId() {
 }
 
 const PEER_CFG = {
-  config: { iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:openrelay.metered.ca:80' },
-    { urls: 'turn:openrelay.metered.ca:80',                  username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443',                 username: 'openrelayproject', credential: 'openrelayproject' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp',   username: 'openrelayproject', credential: 'openrelayproject' },
-  ]}
+  config: {
+    iceTransportPolicy: 'all',
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:openrelay.metered.ca:80' },
+      { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
+      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+    ]
+  }
 };
 
 function createRoom() {
@@ -1091,7 +1094,7 @@ function joinRoom() {
   peer = new Peer(PEER_CFG);
   peer.on('open', () => {
     setJoinStatus('已连接服务器，正在找到对方…');
-    conn = peer.connect(roomId, {reliable: true, serialization: 'json'});
+    conn = peer.connect(roomId, {reliable: true});
     setupConn(false);
     // timeout if conn.open doesn't fire in 15s
     _joinTimer = setTimeout(() => {
