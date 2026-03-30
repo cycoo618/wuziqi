@@ -1027,6 +1027,7 @@ function olBackToChoice() {
 }
 
 function cleanupPeer() {
+  clearTimeout(_joinTimer);
   if (conn) { try { conn.close(); } catch(e){} conn = null; }
   if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
 }
@@ -1041,14 +1042,22 @@ function copyRoomId() {
   }).catch(() => {});
 }
 
+const PEER_CFG = {
+  config: { iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+  ]}
+};
+
 function createRoom() {
   showOLStep('host');
   const roomId = generateRoomId();
   document.getElementById('room-id-display').textContent = roomId;
-  document.getElementById('ol-host-status').textContent = '正在初始化…';
+  document.getElementById('ol-host-status').textContent = '正在连接服务器…';
 
   cleanupPeer();
-  peer = new Peer(roomId);
+  peer = new Peer(roomId, PEER_CFG);
   peer.on('open', () => {
     document.getElementById('ol-host-status').textContent = '等待好友加入…';
   });
@@ -1063,30 +1072,55 @@ function createRoom() {
     }, 800);
   });
   peer.on('error', err => {
-    const msg = err.type === 'unavailable-id' ? '房间号冲突，请重试' : '连接出错：' + err.type;
-    document.getElementById('ol-host-status').textContent = msg;
+    if (err.type === 'unavailable-id') {
+      document.getElementById('ol-host-status').textContent = '房间号冲突，重新生成…';
+      setTimeout(createRoom, 600);
+    } else {
+      document.getElementById('ol-host-status').textContent = '错误：' + err.type + '，请返回重试';
+    }
   });
 }
 
+let _joinTimer = null;
 function joinRoom() {
   const roomId = document.getElementById('join-input').value.trim().toUpperCase();
   if (roomId.length < 6) { document.getElementById('ol-join-status').textContent = '请输入完整的6位房间号'; return; }
-  document.getElementById('ol-join-status').textContent = '正在连接…';
 
+  setJoinStatus('正在连接服务器…');
+  clearTimeout(_joinTimer);
   cleanupPeer();
-  peer = new Peer();
+
+  peer = new Peer(PEER_CFG);
   peer.on('open', () => {
-    conn = peer.connect(roomId, {reliable: true});
+    setJoinStatus('已连接服务器，正在找到对方…');
+    conn = peer.connect(roomId, {reliable: true, serialization: 'json'});
     setupConn(false);
+    // timeout if conn.open doesn't fire in 15s
+    _joinTimer = setTimeout(() => {
+      if (mode !== 'online') setJoinStatus('连接超时，请确认房间号并重试');
+    }, 15000);
   });
   peer.on('error', err => {
-    document.getElementById('ol-join-status').textContent = '连接失败：' + err.type;
+    clearTimeout(_joinTimer);
+    const msgs = {
+      'peer-unavailable': '找不到该房间，请确认房间号',
+      'network': '网络错误，请检查网络连接',
+      'server-error': '服务器错误，请稍后重试',
+      'socket-error': '连接中断，请重试',
+    };
+    setJoinStatus(msgs[err.type] || '错误：' + err.type);
   });
+}
+
+function setJoinStatus(msg) {
+  const el = document.getElementById('ol-join-status');
+  if (el) el.textContent = msg;
 }
 
 function setupConn(isHost) {
   conn.on('open', () => {
-    if (!isHost) document.getElementById('ol-join-status').textContent = '已连接，等待对方开始…';
+    clearTimeout(_joinTimer);
+    if (!isHost) setJoinStatus('连接成功！等待对方开始…');
   });
   conn.on('data', data => {
     if (data.type === 'start') {
@@ -1101,13 +1135,12 @@ function setupConn(isHost) {
     }
   });
   conn.on('close', () => {
-    if (mode === 'online') {
-      document.getElementById('stxt').textContent = '对方已断线';
-    }
+    if (mode === 'online') document.getElementById('stxt').textContent = '对方已断线';
   });
   conn.on('error', err => {
-    if (mode === 'online') document.getElementById('stxt').textContent = '连接错误';
-    else if (!isHost) document.getElementById('ol-join-status').textContent = '连接出错，请重试';
+    clearTimeout(_joinTimer);
+    if (mode === 'online') document.getElementById('stxt').textContent = '连接错误：' + err.type;
+    else if (!isHost) setJoinStatus('连接出错：' + err.type + '，请重试');
   });
 }
 
