@@ -535,7 +535,7 @@ html[data-skin="neon"] .ol-connect-btn:hover { background: rgba(0,245,212,.22); 
   </div>
 </div>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
 // ── Skin ────────────────────────────────────────────────────────────
 let currentSkin = localStorage.getItem('wuziqi_skin') || 'classic';
@@ -577,7 +577,7 @@ const S = {
 
 // ── State ──────────────────────────────────────────────────────────
 let board, cur, mode, over, winLine, lastPt, aiGoing, aiDiff;
-let peer, conn, myColor;
+let mqttClient, myColor, currentRoomId;
 
 const cv  = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -902,7 +902,7 @@ cv.addEventListener('click', e => {
   if (!inBound(r) || !inBound(c)) return;
   if (place(r, c)) {
     if (mode === 'pve' && !over) doAI();
-    if (mode === 'online' && !over && conn) conn.send({type: 'move', r, c});
+    if (mode === 'online' && !over && mqttClient) mqttPublish('move', {r, c});
   }
 });
 
@@ -979,7 +979,7 @@ function startGame(m, diff) {
 
 function restart() {
   init(); document.getElementById('wov').classList.remove('on');
-  if (mode === 'online' && conn) conn.send({type: 'restart'});
+  if (mode === 'online' && mqttClient) mqttPublish('restart', {});
   updateStatus(); drawBoard();
 }
 
@@ -993,7 +993,17 @@ function goBack() {
   requestAnimationFrame(() => requestAnimationFrame(() => sel.classList.remove('out')));
 }
 
-// ── Online multiplayer (PeerJS) ──────────────────────────────────────
+// ── Online multiplayer (MQTT) ─────────────────────────────────────────
+const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
+const TOPIC_NS    = 'wuziqi-game-v2';
+let _readyTimer = null, _joinTimer = null, _hostStarted = false;
+
+function mqttTopic(type) { return `${TOPIC_NS}/${currentRoomId}/${type}`; }
+
+function mqttPublish(type, payload) {
+  if (mqttClient) mqttClient.publish(mqttTopic(type), JSON.stringify(payload));
+}
+
 function generateRoomId() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let id = '';
@@ -1021,15 +1031,12 @@ function showOLStep(step) {
   document.getElementById('ol-join').style.display   = step === 'join'   ? 'flex' : 'none';
 }
 
-function olBackToChoice() {
-  cleanupPeer();
-  showOLStep('choice');
-}
+function olBackToChoice() { cleanupPeer(); showOLStep('choice'); }
 
 function cleanupPeer() {
-  clearTimeout(_joinTimer);
-  if (conn) { try { conn.close(); } catch(e){} conn = null; }
-  if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
+  clearTimeout(_readyTimer); clearTimeout(_joinTimer);
+  _hostStarted = false;
+  if (mqttClient) { try { mqttClient.end(true); } catch(e){} mqttClient = null; }
 }
 
 function copyRoomId() {
@@ -1042,115 +1049,80 @@ function copyRoomId() {
   }).catch(() => {});
 }
 
-const PEER_CFG = {
-  config: {
-    iceTransportPolicy: 'all',
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'stun:openrelay.metered.ca:80' },
-      { urls: 'turn:openrelay.metered.ca:80',                username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:443',               username: 'openrelayproject', credential: 'openrelayproject' },
-      { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
-    ]
-  }
-};
+function mqttConnect(suffix, onConnected) {
+  const clientId = 'wuziqi-' + suffix + '-' + Math.random().toString(36).substr(2, 6);
+  const client = mqtt.connect(MQTT_BROKER, { clientId, clean: true, connectTimeout: 8000 });
+  client.on('connect', onConnected);
+  client.on('error', () => {
+    if (suffix === 'host') document.getElementById('ol-host-status').textContent = '连接服务器失败，请重试';
+    else setJoinStatus('连接服务器失败，请重试');
+  });
+  return client;
+}
 
 function createRoom() {
   showOLStep('host');
-  const roomId = generateRoomId();
-  document.getElementById('room-id-display').textContent = roomId;
+  currentRoomId = generateRoomId();
+  document.getElementById('room-id-display').textContent = currentRoomId;
   document.getElementById('ol-host-status').textContent = '正在连接服务器…';
-
   cleanupPeer();
-  peer = new Peer(roomId, PEER_CFG);
-  peer.on('open', () => {
+
+  mqttClient = mqttConnect('host', () => {
     document.getElementById('ol-host-status').textContent = '等待好友加入…';
-  });
-  peer.on('connection', c => {
-    conn = c;
-    document.getElementById('ol-host-status').textContent = '好友已连接，建立通道中…';
-    setupConn(true);
-  });
-  peer.on('error', err => {
-    if (err.type === 'unavailable-id') {
-      document.getElementById('ol-host-status').textContent = '房间号冲突，重新生成…';
-      setTimeout(createRoom, 600);
-    } else {
-      document.getElementById('ol-host-status').textContent = '错误：' + err.type + '，请返回重试';
-    }
+    mqttClient.subscribe([mqttTopic('guest-join'), mqttTopic('move'), mqttTopic('restart')]);
+
+    const ping = () => { if (mqttClient && !_hostStarted) mqttClient.publish(mqttTopic('host-ready'), '1'); };
+    ping();
+    _readyTimer = setInterval(ping, 2000);
+
+    mqttClient.on('message', (topic, msg) => {
+      if (topic === mqttTopic('guest-join') && !_hostStarted) {
+        _hostStarted = true;
+        clearInterval(_readyTimer);
+        document.getElementById('ol-host-status').textContent = '好友已加入！即将开始…';
+        myColor = 1;
+        setTimeout(() => { mqttPublish('start', {yourColor: 2}); startOnlineGame(); }, 400);
+      } else if (topic === mqttTopic('move') && mode === 'online') {
+        const d = JSON.parse(msg.toString()); place(d.r, d.c);
+      } else if (topic === mqttTopic('restart') && mode === 'online') {
+        init(); document.getElementById('wov').classList.remove('on'); updateStatus(); drawBoard();
+      }
+    });
   });
 }
 
-let _joinTimer = null;
+function setJoinStatus(msg) { const el = document.getElementById('ol-join-status'); if (el) el.textContent = msg; }
+
 function joinRoom() {
   const roomId = document.getElementById('join-input').value.trim().toUpperCase();
-  if (roomId.length < 6) { document.getElementById('ol-join-status').textContent = '请输入完整的6位房间号'; return; }
-
+  if (roomId.length < 6) { setJoinStatus('请输入完整的6位房间号'); return; }
+  currentRoomId = roomId;
   setJoinStatus('正在连接服务器…');
-  clearTimeout(_joinTimer);
   cleanupPeer();
 
-  peer = new Peer(PEER_CFG);
-  peer.on('open', () => {
-    setJoinStatus('已连接服务器，正在找到对方…');
-    conn = peer.connect(roomId, {reliable: true});
-    setupConn(false);
-    // timeout if conn.open doesn't fire in 15s
+  mqttClient = mqttConnect('guest', () => {
+    setJoinStatus('已连接，正在寻找房间…');
+    mqttClient.subscribe([mqttTopic('host-ready'), mqttTopic('start'), mqttTopic('move'), mqttTopic('restart')]);
+
     _joinTimer = setTimeout(() => {
-      if (mode !== 'online') setJoinStatus('连接超时，请确认房间号并重试');
+      if (mode !== 'online') setJoinStatus('等待超时，请确认房间号并重试');
     }, 30000);
-  });
-  peer.on('error', err => {
-    clearTimeout(_joinTimer);
-    const msgs = {
-      'peer-unavailable': '找不到该房间，请确认房间号',
-      'network': '网络错误，请检查网络连接',
-      'server-error': '服务器错误，请稍后重试',
-      'socket-error': '连接中断，请重试',
-    };
-    setJoinStatus(msgs[err.type] || '错误：' + err.type);
-  });
-}
 
-function setJoinStatus(msg) {
-  const el = document.getElementById('ol-join-status');
-  if (el) el.textContent = msg;
-}
-
-function setupConn(isHost) {
-  conn.on('open', () => {
-    clearTimeout(_joinTimer);
-    if (isHost) {
-      document.getElementById('ol-host-status').textContent = '通道建立！即将开始…';
-      setTimeout(() => {
-        myColor = 1;
-        conn.send({type: 'start', yourColor: 2});
+    mqttClient.on('message', (topic, msg) => {
+      if (topic === mqttTopic('host-ready')) {
+        setJoinStatus('找到房间，正在加入…');
+        mqttPublish('guest-join', {});
+      } else if (topic === mqttTopic('start')) {
+        clearTimeout(_joinTimer);
+        const d = JSON.parse(msg.toString());
+        myColor = d.yourColor;
         startOnlineGame();
-      }, 300);
-    } else {
-      setJoinStatus('连接成功！等待对方开始…');
-    }
-  });
-  conn.on('data', data => {
-    if (data.type === 'start') {
-      myColor = data.yourColor;
-      startOnlineGame();
-    } else if (data.type === 'move') {
-      place(data.r, data.c);
-    } else if (data.type === 'restart') {
-      init();
-      document.getElementById('wov').classList.remove('on');
-      updateStatus(); drawBoard();
-    }
-  });
-  conn.on('close', () => {
-    if (mode === 'online') document.getElementById('stxt').textContent = '对方已断线';
-  });
-  conn.on('error', err => {
-    clearTimeout(_joinTimer);
-    if (mode === 'online') document.getElementById('stxt').textContent = '连接错误：' + err.type;
-    else if (!isHost) setJoinStatus('连接出错：' + err.type + '，请重试');
+      } else if (topic === mqttTopic('move') && mode === 'online') {
+        const d = JSON.parse(msg.toString()); place(d.r, d.c);
+      } else if (topic === mqttTopic('restart') && mode === 'online') {
+        init(); document.getElementById('wov').classList.remove('on'); updateStatus(); drawBoard();
+      }
+    });
   });
 }
 
