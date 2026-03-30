@@ -1063,13 +1063,8 @@ function createRoom() {
   });
   peer.on('connection', c => {
     conn = c;
+    document.getElementById('ol-host-status').textContent = '好友已连接，建立通道中…';
     setupConn(true);
-    document.getElementById('ol-host-status').textContent = '好友已连接！即将开始…';
-    setTimeout(() => {
-      myColor = 1;
-      conn.send({type: 'start', yourColor: 2});
-      startOnlineGame();
-    }, 800);
   });
   peer.on('error', err => {
     if (err.type === 'unavailable-id') {
@@ -1120,7 +1115,16 @@ function setJoinStatus(msg) {
 function setupConn(isHost) {
   conn.on('open', () => {
     clearTimeout(_joinTimer);
-    if (!isHost) setJoinStatus('连接成功！等待对方开始…');
+    if (isHost) {
+      document.getElementById('ol-host-status').textContent = '通道建立！即将开始…';
+      setTimeout(() => {
+        myColor = 1;
+        conn.send({type: 'start', yourColor: 2});
+        startOnlineGame();
+      }, 300);
+    } else {
+      setJoinStatus('连接成功！等待对方开始…');
+    }
   });
   conn.on('data', data => {
     if (data.type === 'start') {
