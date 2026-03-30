@@ -186,7 +186,7 @@ body::after {
 }
 
 /* ══════════════ MOBILE RESPONSIVE ══════════════ */
-@media (max-width: 500px) {
+@media (max-width: 640px) {
   /* selection screen */
   #sel { gap: 36px; }
   .sel-h1 { font-size: clamp(52px, 18vw, 80px); }
@@ -201,6 +201,9 @@ body::after {
   .diff-btn { width: min(26vw, 96px); height: 120px; }
   .diff-icon { font-size: 20px; }
   .diff-name { font-size: 14px; }
+  .ol-btns { gap: 10px; }
+  .ol-btn { width: min(36vw, 120px); height: 80px; }
+  .ol-input { width: min(60vw, 190px); font-size: 18px; }
 
   /* game screen */
   #game { gap: 8px; }
@@ -336,6 +339,67 @@ html[data-skin="neon"] .sp.w { background: radial-gradient(circle at 34% 34%, #3
 html[data-skin="neon"] .ai-sp { background: radial-gradient(circle at 34% 34%, #3a0a20, #100010 70%); }
 html[data-skin="neon"] .skin-btn { border-color: rgba(0,245,212,.25); }
 html[data-skin="neon"] .skin-btn.active { background: rgba(0,245,212,.07); }
+
+/* ══════════════ ONLINE LOBBY ══════════════ */
+#online-lobby {
+  position: absolute;
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  opacity: 0; transform: translateY(12px); pointer-events: none;
+  transition: opacity .28s, transform .28s;
+}
+#online-lobby.show { opacity: 1; transform: translateY(0); pointer-events: all; }
+.ol-title { font-size: 13px; letter-spacing: .35em; color: var(--cream-dim); text-transform: uppercase; }
+.ol-btns { display: flex; gap: 14px; }
+.ol-btn {
+  width: 130px; height: 96px;
+  border: 1px solid rgba(226,173,58,.18); border-radius: 3px;
+  background: rgba(226,173,58,.025);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer; font-family: inherit;
+  transition: transform .25s, border-color .25s, box-shadow .25s;
+}
+.ol-btn:hover { transform: translateY(-3px); border-color: rgba(226,173,58,.55); box-shadow: 0 16px 40px rgba(0,0,0,.4); }
+.ol-btn-icon { font-size: 22px; }
+.ol-btn-name { font-size: 15px; font-weight: 700; color: var(--cream); letter-spacing: .06em; }
+.room-id-box {
+  text-align: center; padding: 14px 24px;
+  border: 1px solid rgba(226,173,58,.3); border-radius: 3px;
+  background: rgba(226,173,58,.04);
+}
+.room-id-label { font-size: 10px; letter-spacing: .3em; color: var(--cream-dim); margin-bottom: 8px; text-transform: uppercase; }
+.room-id-code {
+  font-family: 'Cinzel', monospace; font-size: 26px; font-weight: 700;
+  color: var(--gold); letter-spacing: .45em; cursor: pointer;
+}
+.room-id-hint { font-size: 10px; color: var(--cream-dim); margin-top: 6px; }
+.ol-status { font-size: 12px; color: var(--cream-dim); letter-spacing: .06em; min-height: 18px; }
+.ol-input {
+  padding: 10px 14px; background: rgba(0,0,0,.35);
+  border: 1px solid rgba(226,173,58,.25); border-radius: 2px;
+  color: var(--gold); font-family: 'Cinzel', monospace; font-size: 22px;
+  letter-spacing: .4em; text-align: center; width: 190px;
+  outline: none; text-transform: uppercase;
+}
+.ol-input:focus { border-color: rgba(226,173,58,.6); }
+.ol-connect-btn {
+  padding: 10px 28px; border: 1px solid var(--gold); background: rgba(226,173,58,.1);
+  color: var(--gold); font-family: inherit; font-size: 14px; cursor: pointer;
+  border-radius: 2px; letter-spacing: .1em; transition: background .2s;
+}
+.ol-connect-btn:hover { background: rgba(226,173,58,.22); }
+.ol-back {
+  padding: 5px 14px; border: 1px solid rgba(226,173,58,.2); background: transparent;
+  color: var(--cream-dim); font-family: inherit; font-size: 12px;
+  cursor: pointer; border-radius: 2px; letter-spacing: .06em; transition: all .2s;
+}
+.ol-back:hover { border-color: var(--gold); color: var(--gold); }
+html[data-skin="neon"] .ol-btn { border-color: rgba(0,245,212,.18); background: rgba(0,245,212,.025); }
+html[data-skin="neon"] .ol-btn:hover { border-color: rgba(0,245,212,.55); }
+html[data-skin="neon"] .room-id-box { border-color: rgba(0,245,212,.3); background: rgba(0,245,212,.04); }
+html[data-skin="neon"] .ol-input { border-color: rgba(0,245,212,.25); }
+html[data-skin="neon"] .ol-input:focus { border-color: rgba(0,245,212,.6); }
+html[data-skin="neon"] .ol-connect-btn { border-color: #00f5d4; background: rgba(0,245,212,.1); color: #00f5d4; }
+html[data-skin="neon"] .ol-connect-btn:hover { background: rgba(0,245,212,.22); }
 </style>
 </head>
 <body>
@@ -355,7 +419,7 @@ html[data-skin="neon"] .skin-btn.active { background: rgba(0,245,212,.07); }
     </div>
   </div>
   <!-- mode cards wrapper (for positioning diff-pick absolutely) -->
-  <div style="position:relative;display:flex;align-items:center;justify-content:center;min-height:230px;min-width:392px;">
+  <div style="position:relative;display:flex;align-items:center;justify-content:center;min-height:230px;min-width:min(598px,96vw);">
     <div class="cards" id="cards-row">
       <div class="card" onclick="startGame('pvp')">
         <div class="card-stones">
@@ -374,6 +438,15 @@ html[data-skin="neon"] .skin-btn.active { background: rgba(0,245,212,.07); }
         </div>
         <div class="card-name">人机对战</div>
         <div class="card-hint">与智能 AI 对弈</div>
+      </div>
+      <div class="card" onclick="showOnlineLobby()">
+        <div class="card-stones">
+          <div class="sp b"></div>
+          <span class="vs-sep">vs</span>
+          <div class="sp w"></div>
+        </div>
+        <div class="card-name">联网对战</div>
+        <div class="card-hint">与好友在线对弈</div>
       </div>
     </div>
     <!-- difficulty picker -->
@@ -397,6 +470,41 @@ html[data-skin="neon"] .skin-btn.active { background: rgba(0,245,212,.07); }
         </div>
       </div>
       <button class="diff-back" onclick="hideDiffPick()">← 返回</button>
+    </div>
+    <!-- online lobby -->
+    <div id="online-lobby">
+      <div class="ol-title">联网对战</div>
+      <!-- Step 1: choice -->
+      <div id="ol-choice" style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+        <div class="ol-btns">
+          <div class="ol-btn" onclick="createRoom()">
+            <div class="ol-btn-icon">🏠</div>
+            <div class="ol-btn-name">创建房间</div>
+          </div>
+          <div class="ol-btn" onclick="showOLStep('join')">
+            <div class="ol-btn-icon">🚪</div>
+            <div class="ol-btn-name">加入房间</div>
+          </div>
+        </div>
+        <button class="ol-back" onclick="hideOnlineLobby()">← 返回</button>
+      </div>
+      <!-- Step 2a: hosting -->
+      <div id="ol-host" style="display:none;flex-direction:column;align-items:center;gap:14px;">
+        <div class="room-id-box">
+          <div class="room-id-label">房间号 — 点击复制</div>
+          <div class="room-id-code" id="room-id-display" onclick="copyRoomId()">------</div>
+          <div class="room-id-hint">把这个号码发给你的好友</div>
+        </div>
+        <div class="ol-status" id="ol-host-status">正在初始化…</div>
+        <button class="ol-back" onclick="olBackToChoice()">← 取消</button>
+      </div>
+      <!-- Step 2b: joining -->
+      <div id="ol-join" style="display:none;flex-direction:column;align-items:center;gap:14px;">
+        <input class="ol-input" id="join-input" placeholder="XXXXXX" maxlength="6" autocomplete="off">
+        <button class="ol-connect-btn" onclick="joinRoom()">连接</button>
+        <div class="ol-status" id="ol-join-status"></div>
+        <button class="ol-back" onclick="olBackToChoice()">← 返回</button>
+      </div>
     </div>
   </div>
 </div>
@@ -427,6 +535,7 @@ html[data-skin="neon"] .skin-btn.active { background: rgba(0,245,212,.07); }
   </div>
 </div>
 
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 // ── Skin ────────────────────────────────────────────────────────────
 let currentSkin = localStorage.getItem('wuziqi_skin') || 'classic';
@@ -468,6 +577,7 @@ const S = {
 
 // ── State ──────────────────────────────────────────────────────────
 let board, cur, mode, over, winLine, lastPt, aiGoing, aiDiff;
+let peer, conn, myColor;
 
 const cv  = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -787,13 +897,17 @@ let hR, hC;
 cv.addEventListener('click', e => {
   if (over || aiGoing) return;
   if (mode === 'pve' && cur !== 1) return;
+  if (mode === 'online' && cur !== myColor) return;
   const {r, c} = nearRC(e.clientX, e.clientY);
   if (!inBound(r) || !inBound(c)) return;
-  if (place(r, c) && mode === 'pve' && !over) doAI();
+  if (place(r, c)) {
+    if (mode === 'pve' && !over) doAI();
+    if (mode === 'online' && !over && conn) conn.send({type: 'move', r, c});
+  }
 });
 
 cv.addEventListener('mousemove', e => {
-  if (over || aiGoing || (mode === 'pve' && cur !== 1)) { if (hR !== undefined) { hR = hC = undefined; drawBoard(); } return; }
+  if (over || aiGoing || (mode === 'pve' && cur !== 1) || (mode === 'online' && cur !== myColor)) { if (hR !== undefined) { hR = hC = undefined; drawBoard(); } return; }
   const {r, c} = nearRC(e.clientX, e.clientY);
   if (r !== hR || c !== hC) { hR = r; hC = c; drawBoard(hR, hC); }
 });
@@ -805,6 +919,11 @@ function updateStatus() {
   const ss = document.getElementById('sstone');
   const st = document.getElementById('stxt');
   if (aiGoing) { ss.className = 'sstone ai'; st.textContent = 'AI 思考中…'; return; }
+  if (mode === 'online') {
+    ss.className = cur === 1 ? 'sstone b' : 'sstone w';
+    st.textContent = cur === myColor ? '你的回合' : '等待对方落子…';
+    return;
+  }
   if (cur === 1) { ss.className = 'sstone b'; st.textContent = mode === 'pve' ? '你的回合（黑方）' : '黑方落子'; }
   else           { ss.className = mode === 'pve' ? 'sstone ai' : 'sstone w'; st.textContent = mode === 'pve' ? 'AI 回合（白方）' : '白方落子'; }
 }
@@ -814,6 +933,9 @@ function showWin(player) {
   if (mode === 'pve') {
     wt.textContent = player === 1 ? '你赢了！' : 'AI 获胜';
     ws.textContent = player === 1 ? '恭喜！你击败了 AI' : '不要气馁，再战一局';
+  } else if (mode === 'online') {
+    wt.textContent = player === myColor ? '你赢了！' : '对方获胜';
+    ws.textContent = player === myColor ? '恭喜胜利！' : '不要气馁，再战一局';
   } else {
     wt.textContent = player === 1 ? '黑方获胜' : '白方获胜';
     ws.textContent = '精彩对局！';
@@ -857,16 +979,151 @@ function startGame(m, diff) {
 
 function restart() {
   init(); document.getElementById('wov').classList.remove('on');
+  if (mode === 'online' && conn) conn.send({type: 'restart'});
   updateStatus(); drawBoard();
 }
 
 function goBack() {
+  if (mode === 'online') cleanupPeer();
   document.getElementById('game').classList.remove('on');
   document.getElementById('diff-pick').classList.remove('show');
   document.getElementById('cards-row').classList.remove('hide');
   const sel = document.getElementById('sel');
   sel.style.display = 'flex';
   requestAnimationFrame(() => requestAnimationFrame(() => sel.classList.remove('out')));
+}
+
+// ── Online multiplayer (PeerJS) ──────────────────────────────────────
+function generateRoomId() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let id = '';
+  for (let i = 0; i < 6; i++) id += chars[Math.floor(Math.random() * chars.length)];
+  return id;
+}
+
+function showOnlineLobby() {
+  document.getElementById('cards-row').classList.add('hide');
+  setTimeout(() => {
+    showOLStep('choice');
+    document.getElementById('online-lobby').classList.add('show');
+  }, 220);
+}
+
+function hideOnlineLobby() {
+  cleanupPeer();
+  document.getElementById('online-lobby').classList.remove('show');
+  setTimeout(() => document.getElementById('cards-row').classList.remove('hide'), 220);
+}
+
+function showOLStep(step) {
+  document.getElementById('ol-choice').style.display = step === 'choice' ? 'flex' : 'none';
+  document.getElementById('ol-host').style.display   = step === 'host'   ? 'flex' : 'none';
+  document.getElementById('ol-join').style.display   = step === 'join'   ? 'flex' : 'none';
+}
+
+function olBackToChoice() {
+  cleanupPeer();
+  showOLStep('choice');
+}
+
+function cleanupPeer() {
+  if (conn) { try { conn.close(); } catch(e){} conn = null; }
+  if (peer) { try { peer.destroy(); } catch(e){} peer = null; }
+}
+
+function copyRoomId() {
+  const id = document.getElementById('room-id-display').textContent;
+  navigator.clipboard.writeText(id).then(() => {
+    const el = document.getElementById('ol-host-status');
+    const prev = el.textContent;
+    el.textContent = '✓ 已复制到剪贴板';
+    setTimeout(() => { el.textContent = prev; }, 1500);
+  }).catch(() => {});
+}
+
+function createRoom() {
+  showOLStep('host');
+  const roomId = generateRoomId();
+  document.getElementById('room-id-display').textContent = roomId;
+  document.getElementById('ol-host-status').textContent = '正在初始化…';
+
+  cleanupPeer();
+  peer = new Peer(roomId);
+  peer.on('open', () => {
+    document.getElementById('ol-host-status').textContent = '等待好友加入…';
+  });
+  peer.on('connection', c => {
+    conn = c;
+    setupConn(true);
+    document.getElementById('ol-host-status').textContent = '好友已连接！即将开始…';
+    setTimeout(() => {
+      myColor = 1;
+      conn.send({type: 'start', yourColor: 2});
+      startOnlineGame();
+    }, 800);
+  });
+  peer.on('error', err => {
+    const msg = err.type === 'unavailable-id' ? '房间号冲突，请重试' : '连接出错：' + err.type;
+    document.getElementById('ol-host-status').textContent = msg;
+  });
+}
+
+function joinRoom() {
+  const roomId = document.getElementById('join-input').value.trim().toUpperCase();
+  if (roomId.length < 6) { document.getElementById('ol-join-status').textContent = '请输入完整的6位房间号'; return; }
+  document.getElementById('ol-join-status').textContent = '正在连接…';
+
+  cleanupPeer();
+  peer = new Peer();
+  peer.on('open', () => {
+    conn = peer.connect(roomId, {reliable: true});
+    setupConn(false);
+  });
+  peer.on('error', err => {
+    document.getElementById('ol-join-status').textContent = '连接失败：' + err.type;
+  });
+}
+
+function setupConn(isHost) {
+  conn.on('open', () => {
+    if (!isHost) document.getElementById('ol-join-status').textContent = '已连接，等待对方开始…';
+  });
+  conn.on('data', data => {
+    if (data.type === 'start') {
+      myColor = data.yourColor;
+      startOnlineGame();
+    } else if (data.type === 'move') {
+      place(data.r, data.c);
+    } else if (data.type === 'restart') {
+      init();
+      document.getElementById('wov').classList.remove('on');
+      updateStatus(); drawBoard();
+    }
+  });
+  conn.on('close', () => {
+    if (mode === 'online') {
+      document.getElementById('stxt').textContent = '对方已断线';
+    }
+  });
+  conn.on('error', err => {
+    if (mode === 'online') document.getElementById('stxt').textContent = '连接错误';
+    else if (!isHost) document.getElementById('ol-join-status').textContent = '连接出错，请重试';
+  });
+}
+
+function startOnlineGame() {
+  mode = 'online';
+  init();
+  document.getElementById('online-lobby').classList.remove('show');
+  document.getElementById('cards-row').classList.remove('hide');
+  document.getElementById('sel').classList.add('out');
+  setTimeout(() => {
+    document.getElementById('sel').style.display = 'none';
+    document.getElementById('game').classList.add('on');
+  }, 480);
+  document.getElementById('wov').classList.remove('on');
+  document.getElementById('diff-tag').textContent = myColor === 1 ? '联网对战 · 你执黑' : '联网对战 · 你执白';
+  updateStatus(); drawBoard();
 }
 
 // ── Floating stones decoration ────────────────────────────────────────
